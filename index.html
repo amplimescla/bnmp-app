@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"/>
+<meta name="theme-color" content="#050810"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="BNMP Op"/>
+<link rel="manifest" href="./manifest.json"/>
+<title>BNMP Operacional</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg0:     #050810;
+  --bg1:     #090e1c;
+  --bg2:     #0d1528;
+  --bg3:     #111d35;
+  --border:  #1a2e52;
+  --border2: #243c6b;
+  --accent:  #3b82f6;
+  --accentg: #10b981;
+  --accentr: #ef4444;
+  --accento: #f97316;
+  --accenty: #f59e0b;
+  --text:    #e2e8f0;
+  --text2:   #64748b;
+  --text3:   #94a3b8;
+  --mono:    'JetBrains Mono', monospace;
+  --display: 'Bebas Neue', sans-serif;
+  --body:    'Inter', sans-serif;
+  --safe-t:  env(safe-area-inset-top, 0px);
+  --safe-b:  env(safe-area-inset-bottom, 0px);
+}
+
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:var(--bg0);color:var(--text);font-family:var(--body);overflow:hidden}
+#app{display:flex;flex-direction:column;height:100dvh;height:100vh}
+
+/* ─── HEADER ─── */
+#hdr{
+  background:linear-gradient(180deg,var(--bg1),var(--bg2));
+  border-bottom:1px solid var(--border);
+  padding:calc(var(--safe-t) + 10px) 16px 10px;
+  display:flex;align-items:center;gap:12px;
+  flex-shrink:0;position:relative;z-index:10;
+}
+#hdr-logo{
+  width:38px;height:38px;border-radius:8px;
+  background:var(--accent);
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--display);font-size:22px;color:var(--bg0);
+  letter-spacing:1px;flex-shrink:0;
+}
+#hdr-info{flex:1;min-width:0}
+#hdr-title{font-family:var(--display);font-size:20px;letter-spacing:3px;color:var(--accent)}
+#hdr-sub{font-family:var(--mono);font-size:10px;color:var(--text2);letter-spacing:1px;margin-top:1px}
+#gps-btn{
+  width:36px;height:36px;border-radius:50%;border:1px solid var(--border2);
+  background:var(--bg3);display:flex;align-items:center;justify-content:center;
+  cursor:pointer;flex-shrink:0;transition:all .2s;
+}
+#gps-btn.on{border-color:var(--accentg);background:rgba(16,185,129,.12);animation:glow-g 2s infinite}
+#gps-btn.err{border-color:var(--accentr);background:rgba(239,68,68,.12)}
+@keyframes glow-g{0%,100%{box-shadow:0 0 4px rgba(16,185,129,.3)}50%{box-shadow:0 0 14px rgba(16,185,129,.6)}}
+
+/* ─── TABS ─── */
+#tabs{
+  background:var(--bg1);border-bottom:1px solid var(--border);
+  display:flex;flex-shrink:0;
+}
+.tab{
+  flex:1;padding:11px 4px;text-align:center;cursor:pointer;
+  font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;
+  color:var(--text2);border-bottom:2px solid transparent;transition:all .2s;
+  display:flex;flex-direction:column;align-items:center;gap:3px;user-select:none;
+}
+.tab svg{opacity:.5;transition:opacity .2s}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab.active svg{opacity:1}
+
+/* ─── PAGES ─── */
+.page{display:none;flex:1;overflow:hidden;flex-direction:column}
+.page.active{display:flex}
+
+/* ─── MAPA ─── */
+#map{flex:1;min-height:0}
+.leaflet-container{background:#070d1c!important}
+.leaflet-tile{filter:brightness(.65) saturate(.3) hue-rotate(195deg)}
+.leaflet-control-zoom a{
+  background:var(--bg2)!important;color:var(--text)!important;
+  border-color:var(--border)!important;
+}
+
+#map-hud{
+  position:absolute;bottom:0;left:0;right:0;z-index:500;
+  background:linear-gradient(0deg,var(--bg1) 0%,transparent 100%);
+  padding:16px 16px 8px;pointer-events:none;
+}
+#map-stats{
+  display:flex;gap:8px;justify-content:center;flex-wrap:wrap;
+}
+.hud-chip{
+  background:rgba(9,14,28,.85);border:1px solid var(--border2);
+  border-radius:20px;padding:5px 12px;
+  font-family:var(--mono);font-size:11px;color:var(--text3);
+  display:flex;align-items:center;gap:5px;backdrop-filter:blur(8px);
+}
+.hud-chip b{color:var(--accent)}
+.hud-chip.warn b{color:var(--accentr)}
+.hud-chip.foto b{color:var(--accenty)}
+.hud-chip.com  b{color:var(--accento)}
+
+/* Marcadores */
+.mk-alvo{
+  width:24px;height:24px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);
+  border:2px solid rgba(255,255,255,.6);
+}
+.mk-alvo.facil  {background:#10b981;box-shadow:0 0 10px rgba(16,185,129,.5)}
+.mk-alvo.medio  {background:#f59e0b;box-shadow:0 0 10px rgba(245,158,11,.5)}
+.mk-alvo.dificil{background:#ef4444;box-shadow:0 0 10px rgba(239,68,68,.5)}
+.mk-alvo.com    {background:#f97316;box-shadow:0 0 14px rgba(249,115,22,.8)}
+.mk-eu{
+  width:16px;height:16px;border-radius:50%;
+  background:var(--accent);border:3px solid #fff;
+  box-shadow:0 0 0 4px rgba(59,130,246,.3),0 0 20px var(--accent);
+  animation:pulse-eu 2s infinite;
+}
+@keyframes pulse-eu{
+  0%,100%{box-shadow:0 0 0 4px rgba(59,130,246,.3),0 0 20px var(--accent)}
+  50%{box-shadow:0 0 0 8px rgba(59,130,246,.1),0 0 30px var(--accent)}
+}
+
+/* ─── LISTA ─── */
+#page-lista{overflow-y:auto;-webkit-overflow-scrolling:touch}
+#lista-header{
+  position:sticky;top:0;z-index:10;
+  background:var(--bg1);border-bottom:1px solid var(--border);
+  padding:10px 14px;display:flex;align-items:center;gap:10px;
+}
+#lista-header h2{font-family:var(--display);font-size:18px;letter-spacing:3px;color:var(--accent);flex:1}
+#badge{
+  background:var(--accent);color:var(--bg0);
+  border-radius:20px;padding:2px 10px;
+  font-family:var(--mono);font-size:12px;font-weight:700;
+}
+#filtros{
+  background:var(--bg2);border-bottom:1px solid var(--border);
+  padding:8px 14px;display:flex;gap:8px;overflow-x:auto;
+  scrollbar-width:none;flex-shrink:0;
+}
+#filtros::-webkit-scrollbar{display:none}
+.ftag{
+  flex-shrink:0;padding:5px 12px;border-radius:20px;
+  font-family:var(--mono);font-size:10px;letter-spacing:1px;
+  border:1px solid var(--border2);color:var(--text2);
+  cursor:pointer;transition:all .2s;user-select:none;white-space:nowrap;
+}
+.ftag.active{color:var(--bg0);border-color:transparent}
+.ftag[data-f="all"].active{background:var(--accent)}
+.ftag[data-f="facil"].active{background:var(--accentg)}
+.ftag[data-f="medio"].active{background:var(--accenty)}
+.ftag[data-f="dificil"].active{background:var(--accentr)}
+.ftag[data-f="foto"].active{background:var(--accenty)}
+.ftag[data-f="com"].active{background:var(--accento)}
+
+#lista-body{padding:8px 10px 100px}
+
+/* Cards */
+.card{
+  background:var(--bg2);border:1px solid var(--border);border-radius:10px;
+  margin-bottom:8px;padding:12px 14px;cursor:pointer;
+  transition:border-color .15s,transform .1s;position:relative;overflow:hidden;
+}
+.card::before{
+  content:"";position:absolute;left:0;top:0;bottom:0;width:3px;
+  background:var(--border2);transition:background .2s;
+}
+.card.facil::before  {background:var(--accentg)}
+.card.medio::before  {background:var(--accenty)}
+.card.dificil::before{background:var(--accentr)}
+.card.com::before    {background:var(--accento);width:5px}
+.card.com{border-color:rgba(249,115,22,.4);background:rgba(249,115,22,.04)}
+.card:active{transform:scale(.98)}
+.card-top{display:flex;align-items:flex-start;gap:10px;margin-bottom:6px}
+.card-foto{
+  width:44px;height:56px;border-radius:6px;object-fit:cover;
+  background:var(--bg3);border:1px solid var(--border2);flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;color:var(--text2);
+  font-size:20px;
+}
+.card-foto img{width:100%;height:100%;object-fit:cover;border-radius:5px}
+.card-info{flex:1;min-width:0}
+.card-nome{font-size:14px;font-weight:700;color:var(--text);margin-bottom:3px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card-crime{font-family:var(--mono);font-size:11px;color:var(--accenty);
+  margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card-end{font-size:12px;color:var(--text3);display:flex;gap:5px;align-items:flex-start}
+.card-end svg{flex-shrink:0;margin-top:1px;opacity:.6}
+.card-foot{display:flex;align-items:center;gap:6px;margin-top:8px;flex-wrap:wrap}
+.chip{
+  font-family:var(--mono);font-size:9px;letter-spacing:1px;
+  padding:2px 7px;border-radius:4px;text-transform:uppercase;
+}
+.chip-cls{background:rgba(59,130,246,.1);color:var(--accent);border:1px solid rgba(59,130,246,.2)}
+.chip-foto{background:rgba(245,158,11,.1);color:var(--accenty);border:1px solid rgba(245,158,11,.2)}
+.chip-com{background:rgba(249,115,22,.15);color:var(--accento);border:1px solid rgba(249,115,22,.3)}
+.dist{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--text2)}
+.dist.prox{color:var(--accentr);font-weight:700}
+
+.empty{text-align:center;padding:52px 24px;color:var(--text2)}
+.empty-icon{font-size:48px;margin-bottom:14px;opacity:.3}
+.empty h3{font-size:15px;font-weight:600;margin-bottom:6px;color:var(--text3)}
+.empty p{font-size:13px;line-height:1.6}
+
+/* ─── IMPORTAR ─── */
+#page-import{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px 14px 100px}
+.sec{font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;
+  color:var(--text2);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+
+.drop-zone{
+  border:2px dashed var(--border2);border-radius:12px;padding:36px 20px;
+  text-align:center;cursor:pointer;margin-bottom:16px;
+  transition:all .2s;background:var(--bg2);
+}
+.drop-zone:hover,.drop-zone.drag{border-color:var(--accent);background:rgba(59,130,246,.05)}
+.drop-zone-icon{font-size:40px;margin-bottom:10px;opacity:.5}
+.drop-zone h3{font-size:15px;font-weight:700;margin-bottom:5px}
+.drop-zone p{font-size:12px;color:var(--text2);line-height:1.5}
+#file-in{display:none}
+
+.stats-grid{
+  display:grid;grid-template-columns:1fr 1fr;gap:8px;
+  margin-bottom:16px;
+}
+.stat-card{
+  background:var(--bg2);border:1px solid var(--border);border-radius:8px;
+  padding:12px 14px;
+}
+.stat-label{font-family:var(--mono);font-size:9px;letter-spacing:2px;
+  color:var(--text2);text-transform:uppercase;margin-bottom:4px}
+.stat-val{font-family:var(--display);font-size:28px;letter-spacing:2px;color:var(--accent)}
+.stat-val.g{color:var(--accentg)}
+.stat-val.o{color:var(--accento)}
+.stat-val.r{color:var(--accentr)}
+
+.cfg-card{
+  background:var(--bg2);border:1px solid var(--border);border-radius:10px;
+  padding:14px 16px;margin-bottom:10px;
+}
+.cfg-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.cfg-label{font-size:14px;color:var(--text3)}
+.cfg-val{font-family:var(--mono);font-size:13px;color:var(--accent);font-weight:700}
+input[type=range]{
+  width:100%;accent-color:var(--accent);margin-top:10px;
+  height:4px;border-radius:2px;
+}
+.toggle{
+  width:44px;height:24px;border-radius:12px;background:var(--bg3);
+  border:1px solid var(--border2);position:relative;cursor:pointer;
+  transition:background .2s,border-color .2s;flex-shrink:0;
+}
+.toggle.on{background:var(--accentg);border-color:var(--accentg)}
+.toggle::after{
+  content:"";position:absolute;top:2px;left:2px;
+  width:18px;height:18px;border-radius:50%;background:#fff;
+  transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.3);
+}
+.toggle.on::after{transform:translateX(20px)}
+
+.btn{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  width:100%;padding:13px;border-radius:10px;border:none;cursor:pointer;
+  font-family:var(--body);font-size:14px;font-weight:700;
+  letter-spacing:.5px;transition:opacity .2s;
+}
+.btn:active{opacity:.8}
+.btn-danger{background:rgba(239,68,68,.15);color:var(--accentr);border:1px solid rgba(239,68,68,.3)}
+
+/* ─── MODAL ─── */
+#overlay{
+  display:none;position:fixed;inset:0;z-index:2000;
+  background:rgba(0,0,0,.75);backdrop-filter:blur(6px);
+  align-items:flex-end;
+}
+#overlay.open{display:flex}
+#modal{
+  background:var(--bg1);border-top:1px solid var(--border2);
+  border-radius:20px 20px 0 0;padding:16px 20px calc(var(--safe-b) + 28px);
+  width:100%;max-height:88dvh;max-height:88vh;overflow-y:auto;
+  animation:slide-up .25s cubic-bezier(.2,0,0,1);
+}
+@keyframes slide-up{from{transform:translateY(100%)}to{transform:translateY(0)}}
+#modal-handle{width:36px;height:4px;background:var(--border2);border-radius:2px;margin:0 auto 16px}
+
+.modal-foto-wrap{
+  width:72px;height:90px;border-radius:8px;
+  border:1px solid var(--border2);background:var(--bg3);
+  overflow:hidden;display:flex;align-items:center;justify-content:center;
+  font-size:28px;float:right;margin:0 0 12px 12px;flex-shrink:0;
+}
+.modal-foto-wrap img{width:100%;height:100%;object-fit:cover}
+#modal-nome{font-family:var(--display);font-size:22px;letter-spacing:2px;margin-bottom:4px;line-height:1.1}
+#modal-cls{display:inline-flex;align-items:center;gap:6px;margin-bottom:14px}
+.cls-badge{
+  font-family:var(--mono);font-size:10px;letter-spacing:1px;
+  padding:3px 10px;border-radius:20px;font-weight:700;
+}
+
+.mrow{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
+.mrow:last-child{border:none}
+.mlabel{font-family:var(--mono);font-size:10px;letter-spacing:1px;color:var(--text2);
+  min-width:80px;padding-top:1px;text-transform:uppercase}
+.mval{flex:1;font-size:13px;color:var(--text);line-height:1.5}
+.mval.crime{color:var(--accenty)}
+.mval.end{color:var(--accent)}
+.mval.com-badge{color:var(--accento);font-weight:700}
+
+.modal-actions{display:flex;gap:8px;margin-top:16px}
+.mbtn{
+  flex:1;padding:12px;border-radius:9px;border:none;cursor:pointer;
+  font-family:var(--body);font-size:13px;font-weight:600;transition:opacity .2s;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+}
+.mbtn:active{opacity:.7}
+.mbtn-primary{background:var(--accent);color:#fff}
+.mbtn-sec{background:var(--bg3);color:var(--text3);border:1px solid var(--border2)}
+
+/* ─── ALERTA BANNER ─── */
+#alerta-banner{
+  display:none;position:fixed;top:calc(var(--safe-t) + 70px);
+  left:12px;right:12px;z-index:3000;
+  background:rgba(239,68,68,.95);border:1px solid rgba(255,100,100,.5);
+  border-radius:12px;padding:12px 16px;
+  box-shadow:0 8px 32px rgba(239,68,68,.4);
+  animation:banner-in .3s cubic-bezier(.2,0,0,1);
+  backdrop-filter:blur(12px);
+}
+@keyframes banner-in{from{opacity:0;transform:translateY(-16px)}to{opacity:1;transform:translateY(0)}}
+#alerta-banner h4{font-size:14px;font-weight:700;margin-bottom:3px;display:flex;align-items:center;gap:8px}
+#alerta-banner p{font-size:12px;opacity:.9;line-height:1.4}
+#alerta-close{
+  position:absolute;top:8px;right:10px;font-size:18px;cursor:pointer;opacity:.7;
+  background:none;border:none;color:#fff;padding:4px;
+}
+
+/* ─── TOAST ─── */
+#toasts{position:fixed;top:calc(var(--safe-t)+70px);left:0;right:0;
+  display:flex;flex-direction:column;align-items:center;gap:6px;z-index:4000;pointer-events:none}
+.toast{
+  background:var(--bg2);border:1px solid var(--border2);border-radius:10px;
+  padding:10px 16px;width:90%;max-width:360px;
+  font-size:13px;font-weight:500;pointer-events:all;
+  box-shadow:0 4px 24px rgba(0,0,0,.5);
+  display:flex;gap:10px;align-items:flex-start;
+  animation:toast-in .3s ease;
+}
+.toast.ok   {border-color:var(--accentg)}
+.toast.warn {border-color:var(--accentr)}
+.toast.info {border-color:var(--accent)}
+@keyframes toast-in{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- HEADER -->
+<div id="hdr">
+  <div id="hdr-logo">B</div>
+  <div id="hdr-info">
+    <div id="hdr-title">BNMP OPERACIONAL</div>
+    <div id="hdr-sub" id="hdr-sub">● GPS INATIVO</div>
+  </div>
+  <div id="gps-btn" onclick="toggleGPS()" title="GPS">
+    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+      <circle cx="12" cy="12" r="8" stroke-dasharray="2 2"/>
+    </svg>
+  </div>
+</div>
+
+<!-- TABS -->
+<div id="tabs">
+  <div class="tab active" data-tab="mapa">
+    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+      <path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6-10l6-3m0 16l5.447-2.724A1 1 0 0021 16.382V5.618a1 1 0 00-1.447-.894L15 7m0 13V7"/>
+    </svg>
+    MAPA
+  </div>
+  <div class="tab" data-tab="lista">
+    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+      <path d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm0 5.25h.007v.008H3.75V12zm0 5.25h.007v.008H3.75v-.008z"/>
+    </svg>
+    ALVOS
+  </div>
+  <div class="tab" data-tab="import">
+    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+      <path d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
+    </svg>
+    DADOS
+  </div>
+</div>
+
+<!-- PAGE: MAPA -->
+<div class="page active" id="page-mapa" style="position:relative">
+  <div id="map"></div>
+  <div id="map-hud">
+    <div id="map-stats">
+      <div class="hud-chip"><b id="hc-alvos">0</b> alvos</div>
+      <div class="hud-chip warn"><b id="hc-prox">0</b> próximos</div>
+      <div class="hud-chip foto"><b id="hc-foto">0</b> c/ foto</div>
+      <div class="hud-chip com"><b id="hc-com">0</b> comunidade</div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE: LISTA -->
+<div class="page" id="page-lista">
+  <div id="lista-header">
+    <h2>ALVOS</h2>
+    <span id="badge">0</span>
+  </div>
+  <div id="filtros">
+    <div class="ftag active" data-f="all">Todos</div>
+    <div class="ftag" data-f="com">⚡ Comunidade</div>
+    <div class="ftag" data-f="facil">★★★ Fácil</div>
+    <div class="ftag" data-f="medio">★★☆ Médio</div>
+    <div class="ftag" data-f="dificil">★☆☆ Difícil</div>
+    <div class="ftag" data-f="foto">📸 Com foto</div>
+  </div>
+  <div id="lista-body"></div>
+</div>
+
+<!-- PAGE: IMPORTAR -->
+<div class="page" id="page-import">
+  <p class="sec">Importar dados</p>
+
+  <div class="drop-zone" id="dz" onclick="document.getElementById('file-in').click()">
+    <div class="drop-zone-icon">📊</div>
+    <h3>Importar planilha BNMP</h3>
+    <p>Toque para selecionar o arquivo<br/><b>RELATORIO_OPERACIONAL_COMPLETO.xlsx</b></p>
+  </div>
+  <input type="file" id="file-in" accept=".xlsx,.xls,.csv"/>
+
+  <div id="stats-wrap" style="display:none">
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-label">Total</div><div class="stat-val" id="st-tot">0</div></div>
+      <div class="stat-card"><div class="stat-label">Com foto</div><div class="stat-val g" id="st-foto">0</div></div>
+      <div class="stat-card"><div class="stat-label">Comunidade</div><div class="stat-val o" id="st-com">0</div></div>
+      <div class="stat-card"><div class="stat-label">Sem endereço</div><div class="stat-val r" id="st-sem">0</div></div>
+    </div>
+  </div>
+
+  <p class="sec" style="margin-top:8px">Configurações de alerta</p>
+
+  <div class="cfg-card">
+    <div class="cfg-row">
+      <span class="cfg-label">Raio de alerta</span>
+      <span class="cfg-val" id="raio-val">300 m</span>
+    </div>
+    <input type="range" id="raio-sl" min="50" max="1000" step="50" value="300"/>
+  </div>
+
+  <div class="cfg-card">
+    <div class="cfg-row">
+      <span class="cfg-label">Alertar apenas com foto</span>
+      <div class="toggle" id="tg-foto" onclick="this.classList.toggle('on');apenasComFoto=this.classList.contains('on');alertados.clear();renderMapa()"></div>
+    </div>
+  </div>
+
+  <div class="cfg-card">
+    <div class="cfg-row">
+      <span class="cfg-label">Alertar comunidades primeiro</span>
+      <div class="toggle on" id="tg-com" onclick="this.classList.toggle('on');comFirst=this.classList.contains('on')"></div>
+    </div>
+  </div>
+
+  <div style="height:12px"></div>
+  <button class="btn btn-danger" onclick="limpar()">🗑 Limpar todos os dados</button>
+</div>
+
+</div><!-- /app -->
+
+<!-- MODAL -->
+<div id="overlay" onclick="fecharModal(event)">
+  <div id="modal">
+    <div id="modal-handle"></div>
+    <div id="modal-foto-wrap" class="modal-foto-wrap">📷</div>
+    <div id="modal-nome"></div>
+    <div id="modal-cls"></div>
+    <div id="modal-corpo"></div>
+    <div class="modal-actions" id="modal-actions"></div>
+  </div>
+</div>
+
+<!-- ALERTA PROXIMIDADE -->
+<div id="alerta-banner">
+  <button id="alerta-close" onclick="document.getElementById('alerta-banner').style.display='none'">✕</button>
+  <h4>🚨 <span id="ab-titulo">ALVO PRÓXIMO</span></h4>
+  <p id="ab-corpo"></p>
+</div>
+
+<!-- TOASTS -->
+<div id="toasts"></div>
+
+<script>
+// ══════════════════════════════════════════════
+// ESTADO
+// ══════════════════════════════════════════════
+let alvos        = [];
+let posAtual     = null;
+let watchId      = null;
+let gpsAtivo     = false;
+let map          = null;
+let layerAlvos   = null;
+let markerEu     = null;
+let alertados    = new Set();
+let raio         = 300;
+let apenasComFoto= false;
+let comFirst     = true;
+let filtroAtivo  = "all";
+let modalAlvo    = null;
+
+// ══════════════════════════════════════════════
+// SERVICE WORKER
+// ══════════════════════════════════════════════
+if ("serviceWorker" in navigator)
+  navigator.serviceWorker.register("./sw.js").catch(()=>{});
+
+async function pedirNotif(){
+  if ("Notification" in window && Notification.permission==="default")
+    await Notification.requestPermission();
+}
+pedirNotif();
+
+function notificar(titulo, corpo, tag){
+  // Banner visual sempre
+  const ab = document.getElementById("alerta-banner");
+  document.getElementById("ab-titulo").textContent = titulo;
+  document.getElementById("ab-corpo").textContent  = corpo;
+  ab.style.display = "block";
+  setTimeout(()=>{ ab.style.display="none"; }, 8000);
+
+  // Notificação do sistema
+  if (navigator.serviceWorker.controller){
+    navigator.serviceWorker.controller.postMessage({type:"NOTIFY",title:titulo,body:corpo,tag});
+  } else if (Notification.permission==="granted"){
+    new Notification(titulo,{body:corpo,icon:"./icon.png"});
+  }
+  toast(titulo, corpo, "warn");
+}
+
+// ══════════════════════════════════════════════
+// MAPA
+// ══════════════════════════════════════════════
+function initMapa(){
+  map = L.map("map",{zoomControl:false,attributionControl:false}).setView([-7.115,-34.861],13);
+  L.control.zoom({position:"topright"}).addTo(map);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19}).addTo(map);
+  layerAlvos = L.layerGroup().addTo(map);
+}
+
+function renderMapa(){
+  if (!map) return;
+  layerAlvos.clearLayers();
+
+  const lista = apenasComFoto ? alvos.filter(a=>a.temFoto) : alvos;
+
+  lista.forEach((a,i)=>{
+    if (!a.lat||!a.lng) return;
+    const cls = getCls(a);
+
+    // Círculo
+    L.circle([a.lat,a.lng],{
+      radius: raio,
+      color: getCorHex(cls), fillColor: getCorHex(cls),
+      fillOpacity:.06, weight:1
+    }).addTo(layerAlvos);
+
+    // Marcador
+    const icon = L.divIcon({
+      className:"",
+      html:`<div class="mk-alvo ${cls}"></div>`,
+      iconSize:[24,24],iconAnchor:[12,24]
+    });
+    L.marker([a.lat,a.lng],{icon})
+      .addTo(layerAlvos)
+      .on("click",()=>abrirModal(a));
+  });
+
+  atualizarHUD();
+}
+
+function getCls(a){
+  const c = (a.classificacao||"").toLowerCase();
+  if (c.includes("comunidade")) return "com";
+  if (c.includes("fácil")||c.includes("facil")) return "facil";
+  if (c.includes("médio")||c.includes("medio")) return "medio";
+  return "dificil";
+}
+function getCorHex(cls){
+  return {com:"#f97316",facil:"#10b981",medio:"#f59e0b",dificil:"#ef4444"}[cls]||"#3b82f6";
+}
+
+function atualizarHUD(){
+  document.getElementById("hc-alvos").textContent = alvos.length;
+  document.getElementById("hc-foto").textContent  = alvos.filter(a=>a.temFoto).length;
+  document.getElementById("hc-com").textContent   = alvos.filter(a=>(a.classificacao||"").includes("COMUNIDADE")).length;
+  document.getElementById("badge").textContent    = alvos.length;
+}
+
+// ══════════════════════════════════════════════
+// GPS
+// ══════════════════════════════════════════════
+function toggleGPS(){
+  if (gpsAtivo){ pararGPS(); } else { iniciarGPS(); }
+}
+
+function iniciarGPS(){
+  if (!("geolocation" in navigator)){
+    toast("GPS","Dispositivo sem suporte a GPS","warn"); return;
+  }
+  watchId = navigator.geolocation.watchPosition(
+    pos=>{
+      posAtual={lat:pos.coords.latitude,lng:pos.coords.longitude};
+      gpsAtivo=true;
+      document.getElementById("gps-btn").className="gps-btn on";
+      document.getElementById("hdr-sub").textContent=
+        `● ${posAtual.lat.toFixed(5)}, ${posAtual.lng.toFixed(5)}`;
+      atualizarPosNoMapa();
+      verificarProx();
+    },
+    err=>{
+      document.getElementById("gps-btn").className="gps-btn err";
+      document.getElementById("hdr-sub").textContent="● ERRO GPS";
+      toast("GPS","Erro: "+err.message,"warn");
+    },
+    {enableHighAccuracy:true,maximumAge:4000,timeout:15000}
+  );
+}
+
+function pararGPS(){
+  if (watchId) navigator.geolocation.clearWatch(watchId);
+  gpsAtivo=false;
+  document.getElementById("gps-btn").className="gps-btn";
+  document.getElementById("hdr-sub").textContent="● GPS INATIVO";
+}
+
+function atualizarPosNoMapa(){
+  if (!map||!posAtual) return;
+  const icon=L.divIcon({className:"",html:`<div class="mk-eu"></div>`,iconSize:[16,16],iconAnchor:[8,8]});
+  if (!markerEu){
+    markerEu=L.marker([posAtual.lat,posAtual.lng],{icon,zIndexOffset:1000}).addTo(map);
+    map.setView([posAtual.lat,posAtual.lng],15);
+  } else {
+    markerEu.setLatLng([posAtual.lat,posAtual.lng]);
+  }
+}
+
+function haversine(a1,o1,a2,o2){
+  const R=6371000,dr=(a2-a1)*Math.PI/180,dl=(o2-o1)*Math.PI/180;
+  const a=Math.sin(dr/2)**2+Math.cos(a1*Math.PI/180)*Math.cos(a2*Math.PI/180)*Math.sin(dl/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+function verificarProx(){
+  if (!posAtual||!alvos.length) return;
+  let proximos=0;
+  const lista = apenasComFoto ? alvos.filter(a=>a.temFoto) : alvos;
+
+  lista.forEach((a,i)=>{
+    if (!a.lat||!a.lng) return;
+    a._dist = haversine(posAtual.lat,posAtual.lng,a.lat,a.lng);
+    if (a._dist<=raio){
+      proximos++;
+      const key=`${i}`;
+      if (!alertados.has(key)){
+        alertados.add(key);
+        const pref = (a.classificacao||"").includes("COMUNIDADE")?"⚡ COMUNIDADE — ":"⚠ ALVO PRÓXIMO — ";
+        const foto = a.temFoto?" 📸":"";
+        notificar(
+          pref+Math.round(a._dist)+"m"+foto,
+          `${a.nome} | ${a.crime||""}\n${a.endereco||""}`,
+          `alvo-${i}`
+        );
+      }
+    } else {
+      if (a._dist>raio*1.3) alertados.delete(`${i}`);
+    }
+  });
+
+  document.getElementById("hc-prox").textContent=proximos;
+  renderizarLista();
+}
+
+// ══════════════════════════════════════════════
+// IMPORTAR XLSX
+// ══════════════════════════════════════════════
+document.getElementById("file-in").addEventListener("change",e=>{
+  const f=e.target.files[0];
+  if(f) processarArq(f);
+  e.target.value="";
+});
+const dz=document.getElementById("dz");
+dz.addEventListener("dragover",e=>{e.preventDefault();dz.classList.add("drag")});
+dz.addEventListener("dragleave",()=>dz.classList.remove("drag"));
+dz.addEventListener("drop",e=>{e.preventDefault();dz.classList.remove("drag");const f=e.dataTransfer.files[0];if(f)processarArq(f)});
+
+async function processarArq(file){
+  toast("Lendo...","Processando "+file.name,"info");
+  const buf=await file.arrayBuffer();
+  let rows=[];
+  if(file.name.endsWith(".csv")){
+    rows=new TextDecoder().decode(buf).split("\n").map(l=>l.split(";"));
+  } else {
+    const wb=XLSX.read(buf,{type:"array"});
+    rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1});
+  }
+  if(rows.length<2){toast("Vazio","Nenhum dado encontrado","warn");return;}
+
+  const hdr=rows[0].map(h=>String(h||"").toLowerCase());
+  const ci=n=>hdr.findIndex(h=>h.includes(n));
+  const iNome=ci("nome"),iMae=ci("mae"),iCrime=ci("crime");
+  const iEnd=ci("endere"),iProc=ci("processo"),iTipo=ci("mandado");
+  const iFoto=ci("foto"),iCls=ci("classif"),iPts=ci("ponto");
+
+  const novos=[];
+  for(let r=1;r<rows.length;r++){
+    const row=rows[r];
+    if(!row||row.every(c=>!c)) continue;
+    const nome=String(row[iNome]||"").trim();
+    if(!nome||nome==="TIMEOUT"||nome.startsWith("ERRO")) continue;
+    novos.push({
+      nome, mae:String(row[iMae]||"").trim(),
+      crime:String(row[iCrime]||"").trim(),
+      endereco:String(row[iEnd]||"").trim(),
+      processo:String(row[iProc]||"").trim(),
+      tipo:String(row[iTipo]||"").trim(),
+      temFoto:iFoto>=0?String(row[iFoto]||"").toUpperCase().includes("SIM"):false,
+      classificacao:String(row[iCls]||"").trim(),
+      pontos:iPts>=0?parseInt(row[iPts])||0:0,
+      lat:null,lng:null,_dist:null,fotoDataUrl:null,
+    });
+  }
+  if(!novos.length){toast("Sem dados","Nenhum alvo válido","warn");return;}
+
+  toast("Geocodificando...",""+novos.length+" endereços — aguarde","info");
+  await geocodificar(novos);
+
+  alvos=novos;
+  salvarLocal();
+  renderizarLista();
+  renderMapa();
+  atualizarHUD();
+  atualizarStats();
+  trocarTab("mapa");
+  toast("Importado!",`${novos.length} alvos | ${novos.filter(a=>a.lat).length} geocodificados`,"ok");
+}
+
+// ══════════════════════════════════════════════
+// GEOCODIFICAÇÃO
+// ══════════════════════════════════════════════
+async function geocodificar(lista){
+  for(const a of lista){
+    if(!a.endereco||a.endereco.length<5) continue;
+    const q=a.endereco.toLowerCase().includes("pessoa")?a.endereco:`${a.endereco}, João Pessoa, PB`;
+    try{
+      const r=await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`,
+        {headers:{"Accept-Language":"pt-BR"}});
+      const d=await r.json();
+      if(d&&d[0]){a.lat=parseFloat(d[0].lat);a.lng=parseFloat(d[0].lon);}
+    }catch{}
+    await new Promise(r=>setTimeout(r,1150));
+  }
+}
+
+// ══════════════════════════════════════════════
+// LISTA
+// ══════════════════════════════════════════════
+function renderizarLista(){
+  const body=document.getElementById("lista-body");
+  let lista=[...alvos];
+
+  if(filtroAtivo==="foto")    lista=lista.filter(a=>a.temFoto);
+  else if(filtroAtivo==="com")lista=lista.filter(a=>(a.classificacao||"").includes("COMUNIDADE"));
+  else if(filtroAtivo!=="all")lista=lista.filter(a=>{
+    const c=(a.classificacao||"").toLowerCase();
+    if(filtroAtivo==="facil")  return c.includes("fácil")||c.includes("facil");
+    if(filtroAtivo==="medio")  return c.includes("médio")||c.includes("medio");
+    if(filtroAtivo==="dificil")return c.includes("difícil")||c.includes("dificil");
+    return true;
+  });
+
+  if(posAtual) lista.sort((a,b)=>{
+    const da=a._dist??Infinity, db=b._dist??Infinity;
+    if(comFirst){
+      const ca=(a.classificacao||"").includes("COMUNIDADE")?0:1;
+      const cb=(b.classificacao||"").includes("COMUNIDADE")?0:1;
+      if(ca!==cb) return ca-cb;
+    }
+    return da-db;
+  });
+
+  document.getElementById("badge").textContent=lista.length;
+
+  if(!lista.length){
+    body.innerHTML=`<div class="empty">
+      <div class="empty-icon">🎯</div>
+      <h3>${filtroAtivo==="all"?"Nenhum alvo carregado":"Nenhum alvo neste filtro"}</h3>
+      <p>${filtroAtivo==="all"?"Importe a planilha gerada pelo extrator.":"Tente outro filtro."}</p>
+    </div>`;
+    return;
+  }
+
+  body.innerHTML=lista.map(a=>{
+    const cls=getCls(a);
+    const dist=a._dist!=null
+      ?`<span class="dist ${a._dist<=raio?"prox":""}">${a._dist<1000?Math.round(a._dist)+"m":(a._dist/1000).toFixed(1)+"km"}</span>`:"";
+    const fotoEl=a.temFoto?`<span class="chip chip-foto">📸 FOTO</span>`:"";
+    const comEl=(a.classificacao||"").includes("COMUNIDADE")?`<span class="chip chip-com">⚡ COMUNIDADE</span>`:"";
+    const fotoThumb=a.fotoDataUrl
+      ?`<div class="card-foto"><img src="${a.fotoDataUrl}" alt="foto"/></div>`
+      :`<div class="card-foto">👤</div>`;
+
+    return `<div class="card ${cls}" onclick='abrirModal(alvos[${alvos.indexOf(a)}])'>
+      <div class="card-top">
+        ${fotoThumb}
+        <div class="card-info">
+          <div class="card-nome">${a.nome}</div>
+          <div class="card-crime">${a.crime||"Crime não identificado"}</div>
+          <div class="card-end">
+            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z"/><path d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"/>
+            </svg>
+            ${a.endereco||"Endereço não disponível"}
+          </div>
+        </div>
+      </div>
+      <div class="card-foot">
+        <span class="chip chip-cls">${a.classificacao||"—"}</span>
+        ${fotoEl}${comEl}${dist}
+      </div>
+    </div>`;
+  }).join("");
+}
+
+// ══════════════════════════════════════════════
+// MODAL
+// ══════════════════════════════════════════════
+function abrirModal(a){
+  modalAlvo=a;
+  const cls=getCls(a);
+  const cores={com:["#f97316","rgba(249,115,22,.2)"],facil:["#10b981","rgba(16,185,129,.2)"],
+                medio:["#f59e0b","rgba(245,158,11,.2)"],dificil:["#ef4444","rgba(239,68,68,.2)"]}[cls];
+
+  // Foto
+  const fw=document.getElementById("modal-foto-wrap");
+  if(a.fotoDataUrl){fw.innerHTML=`<img src="${a.fotoDataUrl}" alt="foto"/>`;}
+  else{fw.innerHTML="📷";}
+
+  document.getElementById("modal-nome").textContent=a.nome;
+  document.getElementById("modal-cls").innerHTML=
+    `<span class="cls-badge" style="background:${cores[1]};color:${cores[0]};border:1px solid ${cores[0]}">${a.classificacao||"—"}</span>`;
+
+  const com=(a.classificacao||"").includes("COMUNIDADE");
+  document.getElementById("modal-corpo").innerHTML=`
+    ${com?`<div class="mrow"><span class="mlabel">ATENÇÃO</span><span class="mval com-badge">⚡ COMUNIDADE DE RISCO ELEVADO</span></div>`:""}
+    <div class="mrow"><span class="mlabel">MÃE</span><span class="mval">${a.mae||"—"}</span></div>
+    <div class="mrow"><span class="mlabel">CRIME</span><span class="mval crime">${a.crime||"—"}</span></div>
+    <div class="mrow"><span class="mlabel">ENDEREÇO</span><span class="mval end">${a.endereco||"—"}</span></div>
+    <div class="mrow"><span class="mlabel">PROCESSO</span><span class="mval">${a.processo||"—"}</span></div>
+    <div class="mrow"><span class="mlabel">TIPO</span><span class="mval">${a.tipo||"—"}</span></div>
+    <div class="mrow"><span class="mlabel">FOTO</span><span class="mval">${a.temFoto?"✅ Possui identificação biométrica":"❌ Sem foto biométrica"}</span></div>
+    ${a._dist!=null?`<div class="mrow"><span class="mlabel">DISTÂNCIA</span><span class="mval" style="color:var(--accent)">${a._dist<1000?Math.round(a._dist)+"m":(a._dist/1000).toFixed(2)+"km"}</span></div>`:""}
+  `;
+
+  const acts=document.getElementById("modal-actions");
+  acts.innerHTML="";
+  if(a.lat&&a.lng){
+    const b1=document.createElement("button");
+    b1.className="mbtn mbtn-primary";b1.innerHTML="🗺 Ver no mapa";
+    b1.onclick=()=>{fecharModal();trocarTab("mapa");map.setView([a.lat,a.lng],17);};
+    acts.appendChild(b1);
+    const b2=document.createElement("button");
+    b2.className="mbtn mbtn-sec";b2.innerHTML="🧭 Navegar";
+    b2.onclick=()=>window.open(`https://maps.google.com/?q=${a.lat},${a.lng}`,"_blank");
+    acts.appendChild(b2);
+  }
+  document.getElementById("overlay").classList.add("open");
+}
+function fecharModal(e){
+  if(!e||e.target===document.getElementById("overlay"))
+    document.getElementById("overlay").classList.remove("open");
+}
+
+// ══════════════════════════════════════════════
+// TABS / FILTROS
+// ══════════════════════════════════════════════
+document.querySelectorAll(".tab").forEach(t=>{
+  t.addEventListener("click",()=>trocarTab(t.dataset.tab));
+});
+function trocarTab(id){
+  document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active",t.dataset.tab===id));
+  document.querySelectorAll(".page").forEach(p=>p.classList.toggle("active",p.id===`page-${id}`));
+  if(id==="mapa"&&map) setTimeout(()=>map.invalidateSize(),100);
+}
+
+document.querySelectorAll(".ftag").forEach(t=>{
+  t.addEventListener("click",()=>{
+    document.querySelectorAll(".ftag").forEach(x=>x.classList.remove("active"));
+    t.classList.add("active");
+    filtroAtivo=t.dataset.f;
+    renderizarLista();
+  });
+});
+
+document.getElementById("raio-sl").addEventListener("input",e=>{
+  raio=parseInt(e.target.value);
+  document.getElementById("raio-val").textContent=raio+" m";
+  alertados.clear();renderMapa();
+});
+
+// ══════════════════════════════════════════════
+// STATS / PERSISTÊNCIA / UTILS
+// ══════════════════════════════════════════════
+function atualizarStats(){
+  document.getElementById("stats-wrap").style.display="grid";
+  document.getElementById("st-tot").textContent =alvos.length;
+  document.getElementById("st-foto").textContent=alvos.filter(a=>a.temFoto).length;
+  document.getElementById("st-com").textContent =alvos.filter(a=>(a.classificacao||"").includes("COMUNIDADE")).length;
+  document.getElementById("st-sem").textContent =alvos.filter(a=>!a.lat).length;
+}
+function salvarLocal(){try{localStorage.setItem("bnmp_alvos_v2",JSON.stringify(alvos));}catch{}}
+function carregarLocal(){
+  try{
+    const s=localStorage.getItem("bnmp_alvos_v2");
+    if(s){alvos=JSON.parse(s);renderizarLista();renderMapa();atualizarHUD();atualizarStats();}
+  }catch{}
+}
+function limpar(){
+  if(!confirm("Apagar todos os alvos?")) return;
+  alvos=[];alertados.clear();
+  try{localStorage.removeItem("bnmp_alvos_v2");}catch{}
+  renderizarLista();renderMapa();atualizarHUD();
+  document.getElementById("stats-wrap").style.display="none";
+  toast("Dados apagados","Todos os alvos foram removidos","ok");
+}
+function toast(t,b,tp="info"){
+  const w=document.getElementById("toasts");
+  const el=document.createElement("div");
+  el.className=`toast ${tp}`;
+  const ic={ok:"✅",warn:"🚨",info:"ℹ️"}[tp]||"ℹ️";
+  el.innerHTML=`<span style="font-size:18px">${ic}</span><div><b style="display:block;margin-bottom:2px">${t}</b><span style="color:var(--text2);font-size:12px">${b}</span></div>`;
+  w.appendChild(el);
+  setTimeout(()=>{el.style.transition="opacity .4s";el.style.opacity="0";setTimeout(()=>el.remove(),400);},4500);
+}
+
+// ══════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════
+window.addEventListener("load",()=>{
+  initMapa();
+  carregarLocal();
+  iniciarGPS();
+  setInterval(()=>{if(posAtual)verificarProx();},8000);
+});
+</script>
+</body>
+</html>
