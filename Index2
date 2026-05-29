@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"/>
+<meta name="theme-color" content="#050810"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="BNMP Op"/>
+<title>BNMP Operacional</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg0:     #050810;
+  --bg1:     #090e1c;
+  --bg2:     #0d1528;
+  --bg3:     #111d35;
+  --border:  #1a2e52;
+  --border2: #243c6b;
+  --accent:  #3b82f6;
+  --accentg: #10b981;
+  --accentr: #ef4444;
+  --accento: #f97316;
+  --accenty: #f59e0b;
+  --text:    #e2e8f0;
+  --text2:   #64748b;
+  --text3:   #94a3b8;
+  --mono:    'JetBrains Mono', monospace;
+  --display: 'Bebas Neue', sans-serif;
+  --body:    'Inter', sans-serif;
+  --safe-t:  env(safe-area-inset-top, 0px);
+  --safe-b:  env(safe-area-inset-bottom, 0px);
+}
+
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:var(--bg0);color:var(--text);font-family:var(--body);overflow:hidden}
+#app{display:flex;flex-direction:column;height:100vh}
+
+/* HEADER */
+#hdr{
+  background:linear-gradient(180deg,var(--bg1),var(--bg2));
+  border-bottom:1px solid var(--border);
+  padding:calc(var(--safe-t) + 10px) 16px 10px;
+  display:flex;align-items:center;gap:12px;
+  flex-shrink:0;position:relative;z-index:10;
+}
+#hdr-logo{
+  width:38px;height:38px;border-radius:8px;
+  background:var(--accent);
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--display);font-size:22px;color:var(--bg0);
+  letter-spacing:1px;flex-shrink:0;
+}
+#hdr-info{flex:1;min-width:0}
+#hdr-title{font-family:var(--display);font-size:20px;letter-spacing:3px;color:var(--accent)}
+#hdr-sub{font-family:var(--mono);font-size:10px;color:var(--text2);letter-spacing:1px;margin-top:1px}
+#gps-btn{
+  width:36px;height:36px;border-radius:50%;border:1px solid var(--border2);
+  background:var(--bg3);display:flex;align-items:center;justify-content:center;
+  cursor:pointer;flex-shrink:0;transition:all .2s;
+}
+#gps-btn.on{border-color:var(--accentg);background:rgba(16,185,129,.12);animation:glow-g 2s infinite}
+#gps-btn.err{border-color:var(--accentr);background:rgba(239,68,68,.12)}
+@keyframes glow-g{0%,100%{box-shadow:0 0 4px rgba(16,185,129,.3)}50%{box-shadow:0 0 14px rgba(16,185,129,.6)}}
+
+/* TABS */
+#tabs{background:var(--bg1);border-bottom:1px solid var(--border);display:flex;flex-shrink:0}
+.tab{
+  flex:1;padding:11px 4px;text-align:center;cursor:pointer;
+  font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;
+  color:var(--text2);border-bottom:2px solid transparent;transition:all .2s;
+  display:flex;flex-direction:column;align-items:center;gap:3px;user-select:none;
+}
+.tab svg{opacity:.5;transition:opacity .2s}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab.active svg{opacity:1}
+
+/* PAGES */
+.page{display:none;flex:1;overflow:hidden;flex-direction:column}
+.page.active{display:flex}
+
+/* MAPA */
+#map{flex:1;min-height:0}
+.leaflet-container{background:#070d1c!important}
+.leaflet-tile{filter:brightness(.65) saturate(.3) hue-rotate(195deg)}
+.leaflet-control-zoom a{background:var(--bg2)!important;color:var(--text)!important;border-color:var(--border)!important}
+
+#map-hud{position:absolute;bottom:0;left:0;right:0;z-index:500;background:linear-gradient(0deg,var(--bg1) 0%,transparent 100%);padding:16px 16px 8px;pointer-events:none}
+#map-stats{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.hud-chip{
+  background:rgba(9,14,28,.85);border:1px solid var(--border2);
+  border-radius:20px;padding:5px 12px;
+  font-family:var(--mono);font-size:11px;color:var(--text3);
+  display:flex;align-items:center;gap:5px;backdrop-filter:blur(8px);
+}
+.hud-chip b{color:var(--accent)}
+.hud-chip.warn b{color:var(--accentr)}
+.hud-chip.foto b{color:var(--accenty)}
+.hud-chip.com  b{color:var(--accento)}
+
+/* Marcadores */
+.mk-alvo{width:24px;height:24px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid rgba(255,255,255,.
